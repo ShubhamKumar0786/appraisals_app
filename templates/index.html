@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚗 Signal.vin Bulk Appraisal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #11998e;
+            --danger: #eb3349;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border: none;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #38ef7d 100%);
+            border: none;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .metric-card.profit {
+            background: linear-gradient(135deg, var(--success) 0%, #38ef7d 100%);
+        }
+        
+        .metric-card.loss {
+            background: linear-gradient(135deg, var(--danger) 0%, #f45c43 100%);
+        }
+        
+        .profit-row {
+            background: linear-gradient(135deg, rgba(17,153,142,0.1) 0%, rgba(56,239,125,0.1) 100%);
+        }
+        
+        .loss-row {
+            background: linear-gradient(135deg, rgba(235,51,73,0.1) 0%, rgba(244,92,67,0.1) 100%);
+        }
+        
+        .log-container {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 15px;
+            border-radius: 10px;
+            height: 200px;
+            overflow-y: auto;
+        }
+        
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+        }
+        
+        #vehicleTable {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.25);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark mb-4">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">
+                <i class="bi bi-car-front"></i> Signal.vin Bulk Appraisal
+            </span>
+            <span class="text-white">DreamFleet Export Calculator</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Configuration Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-gear"></i> Configuration
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-key"></i> Signal.vin Credentials</h6>
+                        <div class="mb-2">
+                            <input type="email" class="form-control form-control-sm" id="signalEmail" placeholder="Email" value="{{ config.SIGNAL_EMAIL }}">
+                        </div>
+                        <div class="mb-3">
+                            <input type="password" class="form-control form-control-sm" id="signalPassword" placeholder="Password" value="{{ config.SIGNAL_PASSWORD }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-database"></i> Supabase Configuration</h6>
+                        <div class="mb-2">
+                            <input type="text" class="form-control form-control-sm" id="supabaseUrl" placeholder="Supabase URL" value="{{ config.SUPABASE_URL }}">
+                        </div>
+                        <div class="mb-2">
+                            <input type="password" class="form-control form-control-sm" id="supabaseKey" placeholder="API Key" value="{{ config.SUPABASE_API_KEY }}">
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" class="form-control form-control-sm" id="supabaseTable" placeholder="Table Name" value="{{ config.SUPABASE_TABLE }}">
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="saveConfig()">
+                    <i class="bi bi-save"></i> Save Config
+                </button>
+            </div>
+        </div>
+
+        <!-- Actions Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-play-circle"></i> Actions
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="fetchInventory()" id="btnFetch">
+                            <i class="bi bi-cloud-download"></i> Fetch Inventory
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-success w-100" onclick="startProcessing()" id="btnStart" disabled>
+                            <i class="bi bi-rocket"></i> Start Processing
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-danger w-100" onclick="stopProcessing()" id="btnStop" disabled>
+                            <i class="bi bi-stop-circle"></i> Stop
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-info w-100" onclick="viewResults()">
+                            <i class="bi bi-bar-chart"></i> View Results
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Card -->
+        <div class="card mb-4" id="statusCard" style="display:none;">
+            <div class="card-header">
+                <i class="bi bi-activity"></i> Processing Status
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="spinner-border text-primary me-2" id="spinner"></div>
+                    <span id="statusText">Processing...</span>
+                </div>
+                <div class="progress mb-3" style="height: 25px;">
+                    <div class="progress-bar bg-success" id="progressBar" style="width: 0%">0%</div>
+                </div>
+                <p class="mb-0"><strong>Current VIN:</strong> <span id="currentVin">-</span></p>
+                
+                <h6 class="mt-3"><i class="bi bi-terminal"></i> Logs</h6>
+                <div class="log-container" id="logContainer"></div>
+            </div>
+        </div>
+
+        <!-- Inventory Card -->
+        <div class="card mb-4" id="inventoryCard" style="display:none;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-table"></i> Inventory</span>
+                <span class="badge bg-light text-dark" id="inventoryCount">0 vehicles</span>
+            </div>
+            <div class="card-body">
+                <div id="vehicleTable">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>VIN</th>
+                                <th>Make</th>
+                                <th>Model</th>
+                                <th>KM</th>
+                                <th>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vehicleTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Card -->
+        <div class="card mb-4" id="resultsCard" style="display:none;">
+            <div class="card-header">
+                <i class="bi bi-graph-up"></i> Results
+            </div>
+            <div class="card-body">
+                <!-- Metrics -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <h3 id="metricTotal">0</h3>
+                            <p class="mb-0">Total Processed</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card profit">
+                            <h3 id="metricProfitable">0</h3>
+                            <p class="mb-0">Profitable</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card loss">
+                            <h3 id="metricLosses">0</h3>
+                            <p class="mb-0">Losses</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card profit">
+                            <h3 id="metricTotalProfit">$0</h3>
+                            <p class="mb-0">Total Profit</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profitable Table -->
+                <h5><i class="bi bi-currency-dollar"></i> Profitable Vehicles</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-success">
+                            <tr>
+                                <th>VIN</th>
+                                <th>Make/Model</th>
+                                <th>Price</th>
+                                <th>Export Value</th>
+                                <th>Profit</th>
+                                <th>Link</th>
+                            </tr>
+                        </thead>
+                        <tbody id="profitableTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center py-3 text-muted">
+        Built for Bikram @ DreamFleet
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let vehicles = [];
+        let statusInterval = null;
+
+        function formatCurrency(amount) {
+            if (amount >= 0) return '$' + amount.toLocaleString();
+            return '-$' + Math.abs(amount).toLocaleString();
+        }
+
+        function saveConfig() {
+            fetch('/api/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    signal_email: document.getElementById('signalEmail').value,
+                    signal_password: document.getElementById('signalPassword').value,
+                    supabase_url: document.getElementById('supabaseUrl').value,
+                    supabase_api_key: document.getElementById('supabaseKey').value,
+                    supabase_table: document.getElementById('supabaseTable').value
+                })
+            }).then(r => r.json()).then(data => {
+                alert('✅ Config saved!');
+            });
+        }
+
+        function fetchInventory() {
+            document.getElementById('btnFetch').innerHTML = '<span class="spinner-border"></span> Loading...';
+            document.getElementById('btnFetch').disabled = true;
+
+            fetch('/api/fetch-inventory')
+                .then(r => r.json())
+                .then(data => {
+                    vehicles = data.vehicles;
+                    document.getElementById('inventoryCount').textContent = data.valid + ' valid vehicles';
+                    
+                    let html = '';
+                    data.vehicles.forEach(v => {
+                        html += `<tr>
+                            <td><code>${v.vin}</code></td>
+                            <td>${v.make}</td>
+                            <td>${v.model}</td>
+                            <td>${v.odometer}</td>
+                            <td>${formatCurrency(v.list_price)}</td>
+                        </tr>`;
+                    });
+                    document.getElementById('vehicleTableBody').innerHTML = html;
+                    document.getElementById('inventoryCard').style.display = 'block';
+                    document.getElementById('btnStart').disabled = false;
+                    document.getElementById('btnFetch').innerHTML = '<i class="bi bi-cloud-download"></i> Fetch Inventory';
+                    document.getElementById('btnFetch').disabled = false;
+                })
+                .catch(err => {
+                    alert('❌ Error: ' + err);
+                    document.getElementById('btnFetch').innerHTML = '<i class="bi bi-cloud-download"></i> Fetch Inventory';
+                    document.getElementById('btnFetch').disabled = false;
+                });
+        }
+
+        function startProcessing() {
+            if (vehicles.length === 0) {
+                alert('No vehicles to process!');
+                return;
+            }
+
+            document.getElementById('btnStart').disabled = true;
+            document.getElementById('btnStop').disabled = false;
+            document.getElementById('statusCard').style.display = 'block';
+            document.getElementById('logContainer').innerHTML = '';
+
+            fetch('/api/start-processing', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({vehicles: vehicles})
+            }).then(r => r.json()).then(data => {
+                console.log(data);
+                statusInterval = setInterval(updateStatus, 2000);
+            });
+        }
+
+        function updateStatus() {
+            fetch('/api/status')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('currentVin').textContent = data.current_vin || '-';
+                    
+                    let pct = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
+                    document.getElementById('progressBar').style.width = pct + '%';
+                    document.getElementById('progressBar').textContent = `${data.progress}/${data.total} (${pct}%)`;
+                    
+                    document.getElementById('statusText').textContent = 
+                        data.is_processing ? `Processing ${data.progress}/${data.total}...` : 'Completed!';
+                    
+                    // Logs
+                    let logHtml = data.logs.map(l => `<div>${l}</div>`).join('');
+                    document.getElementById('logContainer').innerHTML = logHtml;
+                    document.getElementById('logContainer').scrollTop = document.getElementById('logContainer').scrollHeight;
+
+                    if (!data.is_processing) {
+                        clearInterval(statusInterval);
+                        document.getElementById('spinner').style.display = 'none';
+                        document.getElementById('btnStart').disabled = false;
+                        document.getElementById('btnStop').disabled = true;
+                        viewResults();
+                    }
+                });
+        }
+
+        function stopProcessing() {
+            fetch('/api/stop-processing', {method: 'POST'})
+                .then(r => r.json())
+                .then(data => {
+                    clearInterval(statusInterval);
+                    document.getElementById('btnStart').disabled = false;
+                    document.getElementById('btnStop').disabled = true;
+                });
+        }
+
+        function viewResults() {
+            fetch('/api/results')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('resultsCard').style.display = 'block';
+                    document.getElementById('metricTotal').textContent = data.summary.total;
+                    document.getElementById('metricProfitable').textContent = data.summary.profitable;
+                    document.getElementById('metricLosses').textContent = data.summary.losses;
+                    document.getElementById('metricTotalProfit').textContent = formatCurrency(Math.round(data.total_profit));
+
+                    let html = '';
+                    data.profitable.sort((a,b) => b.profit - a.profit).forEach(r => {
+                        html += `<tr class="profit-row">
+                            <td><code>${r.vin}</code></td>
+                            <td>${r.make || ''} ${r.model || ''}</td>
+                            <td>${formatCurrency(r.list_price)}</td>
+                            <td>${formatCurrency(parseFloat(r.export_value_cad))}</td>
+                            <td><strong class="text-success">${formatCurrency(Math.round(r.profit))}</strong></td>
+                            <td><a href="${r.listing_url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-link"></i>
+                            </a></td>
+                        </tr>`;
+                    });
+                    document.getElementById('profitableTableBody').innerHTML = html || '<tr><td colspan="6" class="text-center">No profitable vehicles found</td></tr>';
+                });
+        }
+    </script>
+</body>
+</html>

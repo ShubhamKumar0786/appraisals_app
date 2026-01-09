@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: signal-vin-flask
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: SIGNAL_EMAIL
+        sync: false
+      - key: SIGNAL_PASSWORD
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_API_KEY
+        sync: false
+      - key: SUPABASE_TABLE
+        value: inventory
+      - key: PORT
+        value: 5000
